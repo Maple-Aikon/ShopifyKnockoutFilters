@@ -15,6 +15,13 @@
   </div>
   <a href="#" class="clear-filters" data-bind="click: clearFilters">Clear Filters</a>
 </div>
+<div data-bind="visible: hasFilters()">
+  <div>
+    <a class="button" data-bind="click: toggleVisible, text: buttonText()"></a>
+  </div>
+</div>
+
+{% include 'sort-and-process-tags' %}
 
 <!-- Place in Footer in theme.liquid -->
 {{ '//cdnjs.cloudflare.com/ajax/libs/knockout/3.4.1/knockout-min.js' | script_tag }}
