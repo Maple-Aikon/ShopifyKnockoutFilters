@@ -1,6 +1,8 @@
 # ShopifyKnockoutFilters
 Knockout filters for Shopify using regular 'ol Shopify tags
 
+To start off, this uses tags that look like filter-[category]-[filter-criteria]. For example, I would use a tag like 'filter-color-silver-tones' to activate this filtering script.
+
 Add this snippet to your collection.liquid file.
 
 ``` liquid
