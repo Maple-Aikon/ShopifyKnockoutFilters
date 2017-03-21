@@ -1,0 +1,20 @@
+
+<!-- Place in collection.liquid -->
+<div data-bind="visible: filtersVisible">
+  <div class="grid--colection-tag-categories" data-bind="foreach: collectionTagCategories">
+    <div class="tagCategory">
+      <h6 data-bind="text: type"></h6>
+      <div class="tags" data-bind="foreach: tags">
+        <div class="checkbox">
+          <label>
+            <input type="checkbox" data-bind="attr: { value: machineName, name: machineName }, click: $root.checkedChangeUrl, checked: isChecked"> <span data-bind="text: tagName"></span>
+          </label>
+        </div>
+      </div>
+    </div>
+  </div>
+  <a href="#" class="clear-filters" data-bind="click: clearFilters">Clear Filters</a>
+</div>
+
+<!-- Place in Footer in theme.liquid -->
+{{ '//cdnjs.cloudflare.com/ajax/libs/knockout/3.4.1/knockout-min.js' | script_tag }}

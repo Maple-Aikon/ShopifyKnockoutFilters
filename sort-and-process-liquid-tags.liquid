@@ -1,0 +1,290 @@
+<script type="text/javascript">
+
+  window.collectionTags = {{ collection.all_tags || json }};
+
+  function sort_unique(arr) {
+    if (arr.length === 0) return arr;
+    arr = arr.sort(function (a, b) { return a*1 - b*1; });
+    var ret = [arr[0]];
+    for (var i = 1; i < arr.length; i++) { // start loop at 1 as element 0 can never be a duplicate
+      if (arr[i-1] !== arr[i]) {
+        ret.push(arr[i]);
+      }
+    }
+    return ret;
+  }
+
+  String.prototype.capitalizeFirstLetter = function() {
+    return this.charAt(0).toUpperCase() + this.slice(1);
+  }
+
+  function CollectionTagFilterModel() {
+    var self = this;
+    self.collectionTags = window.collectionTags;
+
+    /* Filter out the 'filter-' part of the tag */
+    self._filterFilter = function(element) {
+      return element.startsWith('filter-');
+    }
+
+    /* 
+      Sort based on numerical value of first integer
+      instead of the first number in a string
+    */
+    self._compare = function(a, b) {
+      // get value of item after filter
+      var filters = [], matches, intCompare, numbersCompare = [];
+
+      filters.push( a.replace("filter-", "") );
+      filters.push( b.replace("filter-", "") );
+
+      for ( var i = 0; i < filters.length; i++ ) {
+        const regex = /^[^\d]*(\d+)/;
+        const str = filters[i];
+        var m;
+
+        if ((m = regex.exec(str)) === null) {
+          intCompare = false;
+        }
+        else {
+          if (intCompare !== false) {
+            numbersCompare.push( parseInt(m[1]) );
+          }
+        }
+      }
+
+      if ( intCompare === false ) {
+        if (a < b) {
+          return -1;
+        }
+        if (a > b) {
+          return 1;
+        }
+        // a must be equal to b
+        return 0;
+      }
+      else {
+        if ( numbersCompare[0] < numbersCompare[1] ) {
+          return -1;
+        }
+        if ( numbersCompare[1] < numbersCompare[0] ) {
+          return 1;
+        }
+        return 0;
+      }
+    }
+
+    // helper function that returns the value of a query var  
+    self._getQueryVariable = function(variable)
+    {
+      var query = window.location.search.substring(1);
+      if (query !== "")
+      {
+        var vars = query.split("&");
+        for ( var i=0; i<vars.length; i++ ) {
+          var pair = vars[i].split("=");
+          if ( pair.length > 0 ) {
+            var query = pair[1].split("+");
+
+            for ( var x=0; x<query.length; x++ ) {
+              if ( query[x] === variable ) {
+                return true;
+              }
+            }
+          }
+        }
+      }
+      return false;
+    }
+
+    var collectionTagsStringify = JSON.stringify(self.collectionTags),
+        collectionTags = ko.utils.parseJson(collectionTagsStringify);
+
+    /* Filter using only tags that start with 'filter-' */
+    collectionTags = collectionTags.filter(self._filterFilter);
+    /* 
+      Sort based on numerical value of first integer
+      instead of the first number in a string
+    */
+    collectionTags = collectionTags.sort(self._compare);
+
+    self.collectionTags = collectionTags;
+    self.collectionTagsFilter = [];
+
+    var collectionTagCategories = [];
+    var types = [];
+
+    // Remove 'filter-' part of string
+    for ( var i = 0; i < self.collectionTags.length; i++ ) {
+      self.collectionTagsFilter.push(self.collectionTags[i].replace("filter-", ""));
+    }
+    // Regex for category string
+    const regex = /^.*?(?=-)/g;
+    // Filter out types
+    for ( var i = 0; i < self.collectionTagsFilter.length; i++ ) {
+
+      const str = self.collectionTagsFilter[i];
+      var m;
+
+      while ( (m = regex.exec(str)) !== null )
+      {
+        if (m.index === regex.lastIndex) {
+          regex.lastIndex++;
+        }
+
+        mlength = m.length;
+
+        for (var x = 0; x < m.length; x++) {
+          var match = m[x];
+
+          if ( typeof types[match] === 'undefined' ) {
+            types[match] = match;
+
+            /* Get the index Value of the collection tags seperator */
+            var indexVal = collectionTagCategories.push({ type: match, tags: [], selectedChoice: ko.observable() }) - 1;
+
+            types[match] = { type: match, index: indexVal };
+          }
+
+          var indexVal = types[match].index;
+
+          var originalStr = 'filter-' + str;
+          var tagNamme = str.replace(/^.*?(?=-)/i, "");
+          tagNamme = tagNamme.replace(/-/g, " ");
+          tagNamme = tagNamme.trim().capitalizeFirstLetter();
+
+          var isChecked = self._getQueryVariable(originalStr);
+
+          collectionTagCategories[indexVal].tags.push({ tagName: tagNamme, machineName: originalStr, isChecked: isChecked });
+        }
+      }
+    }
+
+    self.collectionTagCategories = ko.observableArray(
+      collectionTagCategories
+    );
+
+    self.currentTags = [];
+    self.buttonVisible;
+
+    self.clearFilters = function()
+    {
+      window.location.search = '';
+    }
+
+    self.showOnStart = function()
+    {
+      return window.location.search !== "";
+    }
+
+    self.hasFilters = function()
+    {
+      return collectionTagCategories.length > 0;
+    }
+
+    self.filtersVisible = ko.observable(self.showOnStart());
+
+    self.toggleVisible = function()
+    {
+
+      if ( self.hasFilters() ) {
+        self.filtersVisible(!self.filtersVisible());
+      }
+    }
+
+    self.checkedChangeUrl = function(obj, event)
+    {
+
+      var el = this,
+          currentChoice = obj,
+          currentTags = [],
+          currentFilter = window.location.search,
+          queryString;
+
+      constructQuery = function(arr) {
+        queryString = '?constraint=';
+
+        for ( var c = 0; c < arr.length; c++ ) {
+          if (c !== 0) {
+            queryString += '+';
+          }
+          queryString += arr[c];
+        }
+        return queryString;
+      };
+
+      // Get current tag filters out of url
+      if (currentFilter !== '')
+      {
+        var usableStr = currentFilter.replace( '?constraint=', '' ),
+            usableArr = usableStr.split('+');
+
+        if ( !currentChoice.isChecked ) // is not checked
+        {
+          usableArr.push(currentChoice.machineName);
+          self.currentTags = usableArr;
+
+          queryString = constructQuery(usableArr);
+
+          window.location.search = queryString;
+        }
+        else
+        { // is checked
+          var index = usableArr.indexOf(currentChoice.machineName);
+          if (index > -1) {
+            usableArr.splice(index, 1);
+          }
+          self.currentTags = usableArr;
+
+          if ( usableArr.length > 0 ) {
+            queryString = constructQuery(usableArr);
+          }
+          else {
+            queryString = '';
+          }
+          window.location.search = queryString;
+        }
+      }
+      else
+      {
+        self.currentTags.push(currentChoice.machineName);
+        self.currentTags = sort_unique(self.currentTags);
+        queryString = '?constraint=' + currentChoice.machineName;
+        window.location.search = queryString;
+      }
+    }
+
+    self.PageName = function()
+    {
+      var pathArray = window.location.pathname.split( '/' );
+      var currentPage = "";
+      if ( pathArray[1] === "collections" ) {
+        if ( pathArray[2] ) {
+          currentPage = pathArray[2];
+          return currentPage;
+        } else if ( pathArray[2] === "types" ) {
+          currentPage = self._getQueryVariable("q");
+          currentPage.replace()
+          return currentPage;
+        }
+      }
+      return false;
+    }
+
+    self.buttonText = function()
+    {
+      if ( self.filtersVisible() ) {
+        return 'Hide Filters';
+      }
+      else {
+        return 'Show Filters';
+      }
+    }
+
+  }
+
+  var collectionsTags = new CollectionTagFilterModel();
+
+  ko.applyBindings(collectionsTags);
+  
+</script>
